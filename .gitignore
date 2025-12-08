@@ -1,0 +1,59 @@
+# -------------------------
+# Python / Streamlit Project
+# -------------------------
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+venv/
+.env/
+.venv/
+env/
+
+# Environment variable files
+.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# -------------------------
+# Model files (Optional)
+# Uncomment if models should NOT be uploaded to GitHub
+# -------------------------
+# models/*.joblib
+# models/*.pkl
+
+# -------------------------
+# Data files
+# -------------------------
+data/*.csv
+data/*.xlsx
+data/*.json
+
+# Allow sample/example datasets
+!data/example_*.csv
+
+# -------------------------
+# Logs
+# -------------------------
+*.log
+logs/
+*.txt
+
+# -------------------------
+# VSCode
+# -------------------------
+.vscode/
+*.code-workspace
+
+# -------------------------
+# Docker
+# -------------------------
+# Ignore build output but not Dockerfile or compose
+**/docker-data/
+*.tar
