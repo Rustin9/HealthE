@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import os
+import requests
 
 # ========= Page Config =========
 st.set_page_config(
@@ -10,6 +12,9 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded"
 )
+
+# ========= Backend URL (for logging & history) =========
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 # ========= Load Models =========
 @st.cache_resource
@@ -21,6 +26,38 @@ def load_models():
     return recovery_model, diet_model, recovery_scaler, diet_scaler
 
 recovery_model, diet_model, recovery_scaler, diet_scaler = load_models()
+
+
+def _to_builtin(val):
+    """Convert NumPy scalars to native Python types so JSON serialization works."""
+    if isinstance(val, (np.generic,)):
+        return val.item()
+    return val
+
+
+def send_log_to_backend(prediction_type, inputs, output):
+    """
+    Fire-and-forget logging of a prediction to the backend.
+    Does NOT break the UI if backend is down.
+    """
+    clean_inputs = {k: _to_builtin(v) for k, v in inputs.items()}
+    clean_output = {k: _to_builtin(v) for k, v in output.items()}
+
+    payload = {
+        "prediction_type": prediction_type,
+        "inputs": clean_inputs,
+        "output": clean_output,
+    }
+    try:
+        requests.post(
+            f"{BACKEND_URL}/log_prediction",
+            json=payload,
+            timeout=2,
+        )
+    except Exception:
+        # ignore logging errors to keep UX smooth
+        pass
+
 
 # ========= Custom CSS =========
 st.markdown("""
@@ -45,7 +82,6 @@ body {
 
 # ========= Header =========
 st.markdown("<h1 class='main-header'>🏥 HealthE</h1>", unsafe_allow_html=True)
-#st.write("Use AI-powered prediction models to estimate **Recovery Rates** and recommend **Diet Plans**.")
 
 # ========= Sidebar Navigation =========
 sidebar_choice = st.sidebar.radio(
@@ -53,12 +89,33 @@ sidebar_choice = st.sidebar.radio(
     ["🔧 Predict Recovery Days", "🍎 Predict Diet Plan"]
 )
 
+# ========= Sidebar: recent history from backend DB =========
+with st.sidebar.expander("📊 Recent Predictions (from DB)"):
+    try:
+        resp = requests.get(f"{BACKEND_URL}/history", params={"limit": 10}, timeout=2)
+        if resp.status_code == 200:
+            records = resp.json()
+            if not records:
+                st.write("No predictions logged yet.")
+            else:
+                rows = []
+                for r in records:
+                    rows.append({
+                        "type": r["prediction_type"],
+                        "created_at": r["created_at"],
+                        "output": r["output"],
+                    })
+                df_hist = pd.DataFrame(rows)
+                st.dataframe(df_hist, use_container_width=True)
+        else:
+            st.write("Could not load history.")
+    except Exception:
+        st.write("Backend not reachable.")
+
 # -------------------------------------------------------------
 # 📌 MODEL 1 — RECOVERY RATE PREDICTION
 # -------------------------------------------------------------
 if sidebar_choice == "🔧 Predict Recovery Days":
-
-    #st.markdown("<div class='card'><h2>🔧 Recovery Rate Prediction</h2></div>", unsafe_allow_html=True)
 
     with st.container():
         st.markdown(
@@ -69,7 +126,6 @@ if sidebar_choice == "🔧 Predict Recovery Days":
             """,
             unsafe_allow_html=True
         )
-
 
     st.markdown(
         """
@@ -89,7 +145,6 @@ if sidebar_choice == "🔧 Predict Recovery Days":
         unsafe_allow_html=True
     )
 
-
     age = st.slider("Age", 1, 100, 25)
     gender = st.selectbox("Gender", ["Male", "Female", "Other"])
     bmi = st.slider("BMI", 12.0, 45.0, 26.5)
@@ -98,13 +153,12 @@ if sidebar_choice == "🔧 Predict Recovery Days":
     rest_hours_per_day = st.slider("Sleep Hours", 0.0, 12.0, 7.0)
     medication_adherence = st.slider("Medical Adherence", 0.0, 1.0, 0.5)
     hospital_visits = st.slider("Hospital Visits", 0, 7, 0)
-    smoking_status = st.selectbox("Smoking Status",["Non-Smoker","Occasional","Regular"])
-
+    smoking_status = st.selectbox("Smoking Status", ["Non-Smoker", "Occasional", "Regular"])
 
     # Convert categorical → numeric
-    condition_map = {"Allergy":0 ,"Cough": 1, "Fever": 2, "Flu": 3, "Infection": 4, "Injury": 5}
-    gender_map = {"Male":1, "Female":0, "Other":2}
-    smoking_status_map = {"Non-Smoker":0, "Occasional":1, "Regular":2}
+    condition_map = {"Allergy": 0, "Cough": 1, "Fever": 2, "Flu": 3, "Infection": 4, "Injury": 5}
+    gender_map = {"Male": 1, "Female": 0, "Other": 2}
+    smoking_status_map = {"Non-Smoker": 0, "Occasional": 1, "Regular": 2}
 
     X = pd.DataFrame({
         "age": [age],
@@ -113,7 +167,7 @@ if sidebar_choice == "🔧 Predict Recovery Days":
         "condition_type": [condition_map[condition_type]],
         "severity_score": [severity_score],
         "rest_hours_per_day": [rest_hours_per_day],
-        "medication_adherence":[medication_adherence],
+        "medication_adherence": [medication_adherence],
         "hospital_visits": [hospital_visits],
         "smoking_status": [smoking_status_map[smoking_status]]
     })
@@ -123,14 +177,20 @@ if sidebar_choice == "🔧 Predict Recovery Days":
 
     if st.button("Predict Recovery Days"):
         pred = recovery_model.predict(X_scaled)[0]
-        st.success(f"🩺 **Predicted Recovery Days: {round(pred,2)} days**")
+        pred_rounded = round(float(pred), 2)
+        st.success(f"🩺 **Predicted Recovery Days: {pred_rounded} days**")
+
+        # Log to backend (non-blocking)
+        send_log_to_backend(
+            "recovery_days",
+            inputs=X.iloc[0].to_dict(),
+            output={"recovery_days": pred_rounded},
+        )
 
 # -------------------------------------------------------------
 # 📌 MODEL 2 — DIET PLAN PREDICTION
 # -------------------------------------------------------------
 if sidebar_choice == "🍎 Predict Diet Plan":
-
-    #st.markdown("<div class='card'><h2>🍎 Diet Plan Recommendation</h2></div>", unsafe_allow_html=True)
 
     with st.container():
         st.markdown(
@@ -141,7 +201,6 @@ if sidebar_choice == "🍎 Predict Diet Plan":
             """,
             unsafe_allow_html=True
         )
-
 
     st.markdown(
         """
@@ -161,10 +220,9 @@ if sidebar_choice == "🍎 Predict Diet Plan":
         unsafe_allow_html=True
     )
 
-
     age = st.slider("Age", 1, 100, 25)
     gender = st.selectbox("Gender", ["Male", "Female"])
-    conditions = st.selectbox("Current Condition", ["Flu", "Infection", "Allergy", "Fever", "Cough", "Injury","No"])
+    conditions = st.selectbox("Current Condition", ["Flu", "Infection", "Allergy", "Fever", "Cough", "Injury", "No"])
     bmi = st.slider("BMI", 12.0, 45.0, 26.5)
     calories = st.slider("Daily Calorie Intake", 1000, 4500, 2500)
     protein = st.slider("Daily Protein Intake (g)", 20, 250, 90)
@@ -174,8 +232,8 @@ if sidebar_choice == "🍎 Predict Diet Plan":
     daily_steps = st.slider("Daily Steps", 1000, 18000, 1500)
     water_intake_liters = st.slider("Water Intake (Litres)", 1, 5, 3)
 
-    conditions_map = {"Allergy": 0, "Cough": 1, "Fever": 2, "Flu": 3, "Infection": 4, "Injury": 5, "No":6}
-    gender_map = {"Male": 1,"Female": 0}
+    conditions_map = {"Allergy": 0, "Cough": 1, "Fever": 2, "Flu": 3, "Infection": 4, "Injury": 5, "No": 6}
+    gender_map = {"Male": 1, "Female": 0}
 
     X = pd.DataFrame({
         "age": [age],
@@ -191,18 +249,34 @@ if sidebar_choice == "🍎 Predict Diet Plan":
         "water_intake_liters": [water_intake_liters]
     })
 
-    cols_to_scale = ["age","bmi", "daily_calories", "protein_intake",
-                     "carb_intake", "fat_intake", "sleep_hours",
-                     "daily_steps", "water_intake_liters"]
+    cols_to_scale = [
+        "age", "bmi", "daily_calories", "protein_intake",
+        "carb_intake", "fat_intake", "sleep_hours",
+        "daily_steps", "water_intake_liters"
+    ]
 
     X_scaled = X.copy()
     X_scaled[cols_to_scale] = diet_scaler.transform(X[cols_to_scale])
-    #X_scaled = diet_scaler.transform(X)
 
     if st.button("Recommend Diet Plan"):
-        pred_class = diet_model.predict(X_scaled)[0]
-        pred_label = {0: 'Balanced Diet', 1: 'High-Protein Diet', 2: 'Keto Diet', 3: 'Low-Carb Diet', 4: 'Low-Fat Diet', 5: 'Vegan Diet'}
-        st.success(f"🍏 **Recommended Diet Plan: {pred_label[pred_class]}**")
+        pred_class = int(diet_model.predict(X_scaled)[0])
+        pred_label = {
+            0: 'Balanced Diet',
+            1: 'High-Protein Diet',
+            2: 'Keto Diet',
+            3: 'Low-Carb Diet',
+            4: 'Low-Fat Diet',
+            5: 'Vegan Diet'
+        }
+        label = pred_label.get(pred_class, "Unknown")
+        st.success(f"🍏 **Recommended Diet Plan: {label}**")
+
+        # Log to backend (non-blocking)
+        send_log_to_backend(
+            "diet_plan",
+            inputs=X.iloc[0].to_dict(),
+            output={"diet_plan_class": pred_class, "diet_plan_label": label},
+        )
 
         st.info("""
 ### Plan Explanation

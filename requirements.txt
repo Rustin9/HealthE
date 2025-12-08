@@ -1,7 +1,11 @@
 streamlit
+fastapi
+uvicorn[standard]
+SQLAlchemy
+psycopg2-binary
+requests
 pandas
 numpy
-scikit-learn
 joblib
-xgboost
 lightgbm
+scikit-learn
