@@ -144,7 +144,7 @@ Example stored entry:
 
 🧪 Testing (Optional)
 
-Run backend only:
+Run backend only
 
 uvicorn backend.main:app --reload
 
