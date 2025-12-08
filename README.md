@@ -158,6 +158,6 @@ streamlit run app.py
 💡 Developed by 6 students from Durham College
 ⚙️ ML, backend, frontend, and DevOps contributions distributed across the team.
 
-⭐ If you like this project, give it a star!
+⭐ If you like this project, give it a star!!
 
 This helps the team demonstrate good engineering practices, containerization, and full-stack ML deployment.
