@@ -153,7 +153,7 @@ Run frontend only:
 
 streamlit run app.py
 
-🧑‍🤝‍🧑 Project Contributors
+🧑‍🤝‍🧑 Project Contributors:
 
 💡 Developed by 6 students from Durham College
 ⚙️ ML, backend, frontend, and DevOps contributions distributed across the team.
