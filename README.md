@@ -1,6 +1,6 @@
-🏥 HealthE – AI-Powered Wellness & Recovery Assistant
+🏥 HealthE – Wellness & Recovery Assistant
 
-HealthE is an AI-powered health companion that predicts recovery time from illness and recommends personalized diet plans using two machine-learning models.
+HealthE is your health companion that predicts recovery time from illness and recommends personalized diet plans using two machine-learning models.
 Built as a full-stack application with:
 
 Streamlit Frontend
