@@ -155,8 +155,16 @@ streamlit run app.py
 
 🧑‍🤝‍🧑 Project Contributors:
 
-💡 Developed by 6 students from Durham College
+💡 Developed by the students from Durham College.
 ⚙️ ML, backend, frontend, and DevOps contributions distributed across the team.
+
+Meet the Team:
+Rohan Saldanha - Model Training, Evaluation, Deployment, FrontEnd
+Hamza El Hilali - Data Preprocessing
+Tawheed Shaikh - Fine Tuning
+Jatin Deswal - Model Selection, Deployment
+Mith Thanabalasingam - EDA
+Jashanpreet Singh - Version Control
 
 ⭐ If you like this project, give it a star!!
 
