@@ -289,3 +289,4 @@ and macronutrient balance. A detailed report can be generated in the next update
 # -------------------------------------------------------------
 st.markdown("---")
 st.markdown("##### Built with ❤️ by DC Students")
+st.markdown("---")
